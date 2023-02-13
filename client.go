@@ -8,12 +8,28 @@ import (
 // defaultHTTPTimeout is the default timeout on the http.Client used by the library.
 const defaultHTTPTimeout = 120 * time.Second
 
+// APIURL is the base URL of the Builder API.
+const APIURL string = "https://builder.api.reevolute.com"
+
 // The default HTTP client used for communications with builder.
 var httpClient = &http.Client{
 	Timeout: defaultHTTPTimeout,
 }
 
+// ResponseData data component from Builder response.
+type ResponseData struct {
+	Description string
+	ErrorCode   string
+	Vars        map[string]interface{}
+}
+
+// Response result of Builder execution.
 type Response struct {
+	SessionID    string
+	RequestID    string
+	TreeVersion  string
+	ResponseType string
+	Data         ResponseData
 }
 
 // Client interface.
