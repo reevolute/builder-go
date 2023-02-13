@@ -11,11 +11,6 @@ const defaultHTTPTimeout = 120 * time.Second
 // APIURL is the base URL of the Builder API.
 const APIURL string = "https://builder.api.reevolute.com"
 
-// The default HTTP client used for communications with builder.
-var httpClient = &http.Client{
-	Timeout: defaultHTTPTimeout,
-}
-
 // ResponseData data component from Builder response.
 type ResponseData struct {
 	Description string
@@ -45,13 +40,21 @@ type API struct {
 	TenantID   string
 }
 
+// The default HTTP client used for communications with builder.
+func getDefaultHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: defaultHTTPTimeout,
+	}
+}
+
 // New creates a new Builder client with the appropriate secret key
 // and the tenantID associated.
 func New(key string, tenantID string) *API {
 	api := API{
-		httpClient: httpClient,
+		httpClient: getDefaultHTTPClient(),
 		apiKey:     key,
 		TenantID:   tenantID,
 	}
+
 	return &api
 }

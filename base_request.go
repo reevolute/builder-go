@@ -3,8 +3,9 @@ package builder
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 )
@@ -19,6 +20,8 @@ type builderResponse struct {
 	ResponseType string       `json:"response_type"`
 	Data         ResponseData `json:"data"`
 }
+
+var errBuilderAPI = errors.New("builder api response different from 2xx")
 
 func (a *API) builderBaseRequest(ctx context.Context, request *http.Request) (Response, error) {
 	var res Response
@@ -43,7 +46,7 @@ func (a *API) builderBaseRequest(ctx context.Context, request *http.Request) (Re
 		}
 	}()
 
-	content, err := ioutil.ReadAll(response.Body)
+	content, err := io.ReadAll(response.Body)
 	if err != nil {
 		return res, fmt.Errorf("%w", err)
 	}
@@ -55,9 +58,7 @@ func (a *API) builderBaseRequest(ctx context.Context, request *http.Request) (Re
 	}
 
 	if unacceptableStatusCode := 399; response.StatusCode > unacceptableStatusCode {
-		errMsg := fmt.Sprintf("sce api http error %d", response.StatusCode)
-
-		return res, fmt.Errorf("%s", errMsg)
+		return res, errBuilderAPI
 	}
 
 	res.TreeVersion = baseResponse.TreeVersion
