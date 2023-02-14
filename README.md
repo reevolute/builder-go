@@ -25,3 +25,8 @@ Alternatively, you can also explicitly `go get` the package into a project:
 ```bash
 go get -u github.com/reevolute/builder-go
 ```
+
+## License ##
+
+This library is distributed under the MIT-style license found in the [LICENSE](./LICENSE)
+file.
