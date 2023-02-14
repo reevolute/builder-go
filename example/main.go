@@ -1,4 +1,3 @@
-
 // The simple example shows how to add an execution.
 package main
 
@@ -18,7 +17,7 @@ func main() {
 	client := builder.New(apiKey, tenantID)
 
 	params := map[string]interface{}{
-		"color":      "red",
+		"color": "red",
 	}
 
 	result, err := client.AddExecution(treeID, "production", params)
@@ -27,5 +26,5 @@ func main() {
 		return
 	}
 
-		fmt.Printf("The result is %v\n",  result)
+	fmt.Printf("The result is %v\n", result)
 }
