@@ -13,7 +13,7 @@ Make sure your project is using Go Modules:
 go mod init
 ```
 
-Then, reference stripe-go in a Go program with `import`:
+Then, reference builder-go in a Go program with `import`:
 
 ``` go
 import	"github.com/reevolute/builder-go"
