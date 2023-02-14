@@ -3,8 +3,9 @@ package builder
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 )
@@ -20,21 +21,22 @@ type builderResponse struct {
 	Data         ResponseData `json:"data"`
 }
 
-func (a *API) builderBaseRequest(ctx context.Context, request *http.Request) (Response, error) {
-	var res Response
+var errBuilderAPI = errors.New("builder api response different from 2xx")
 
+func (a *API) builderBaseRequest(ctx context.Context, request *http.Request) (Response, error) {
 	request.Header.Set("Content-Type", "application/json")
+
+	userAgent := fmt.Sprintf("builder-go/%s", clientversion)
+
+	request.Header.Set("User-Agent", userAgent)
 
 	authorizationValue := fmt.Sprintf("Bearer %s", a.apiKey)
 	request.Header.Set("Authorization", authorizationValue)
 
 	response, err := a.httpClient.Do(request.WithContext(ctx))
 	if err != nil {
-		return res, fmt.Errorf("%w", err)
+		return Response{}, fmt.Errorf("%w", err)
 	}
-
-	res.SessionID = response.Header.Get(headerSessionID)
-	res.RequestID = response.Header.Get(headerRequestID)
 
 	defer func() {
 		err := response.Body.Close()
@@ -43,26 +45,28 @@ func (a *API) builderBaseRequest(ctx context.Context, request *http.Request) (Re
 		}
 	}()
 
-	content, err := ioutil.ReadAll(response.Body)
+	content, err := io.ReadAll(response.Body)
 	if err != nil {
-		return res, fmt.Errorf("%w", err)
+		return Response{}, fmt.Errorf("%w", err)
 	}
 
 	var baseResponse builderResponse
 
 	if err := json.Unmarshal(content, &baseResponse); err != nil {
-		return res, fmt.Errorf("%w", err)
+		return Response{}, fmt.Errorf("%w", err)
 	}
 
 	if unacceptableStatusCode := 399; response.StatusCode > unacceptableStatusCode {
-		errMsg := fmt.Sprintf("sce api http error %d", response.StatusCode)
-
-		return res, fmt.Errorf("%s", errMsg)
+		return Response{}, errBuilderAPI
 	}
 
-	res.TreeVersion = baseResponse.TreeVersion
-	res.Data = baseResponse.Data
-	res.ResponseType = baseResponse.ResponseType
+	res := Response{
+		TreeVersion:  baseResponse.TreeVersion,
+		Data:         baseResponse.Data,
+		ResponseType: baseResponse.ResponseType,
+		SessionID:    response.Header.Get(headerSessionID),
+		RequestID:    response.Header.Get(headerRequestID),
+	}
 
 	return res, nil
 }
