@@ -1,4 +1,4 @@
-module github.com/Reevolute/builder-go
+module github.com/reevolute/builder-go
 
 go 1.19
 
