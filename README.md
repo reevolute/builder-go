@@ -1,2 +1,2 @@
 # builder-go
-i[![Build Status](https://github.com/reevolute/builder-go/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/reevolute/builder-go/actions/workflows/test.yml?query=branch%3Amaster)
+[![Build Status](https://github.com/reevolute/builder-go/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/reevolute/builder-go/actions/workflows/test.yml?query=branch%3Amaster)
