@@ -3,7 +3,9 @@
 To run the example, edit the sample.env file with your information then:
 
 ```sh
+set -o allexport
 source sample.ev
+set +o allexport
 ```
 
 execute
