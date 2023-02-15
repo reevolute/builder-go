@@ -1,0 +1,8 @@
+version: '3'
+services:
+  develop:
+    image: gcr.io/zwcsce/reevolute_modd_base:develop-develop 
+    stdin_open: true
+    tty: true
+    volumes:
+        - .:/home/zwc/app

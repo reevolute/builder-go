@@ -48,7 +48,7 @@ func TestAddExecutions200(t *testing.T) {
 		  "tree_version": "3",
 		  "response_type": "COMMON",
 		  "data": {
-		    "description": "invalid_evaluation",
+		    "description": "function evaluation",
 		    "error_code": "0",
 		    "vars": {
 		      "child_response": "red",
@@ -91,7 +91,7 @@ func TestAddExecutions200(t *testing.T) {
 		TreeVersion:  "3",
 		ResponseType: "COMMON",
 		Data: ResponseData{
-			Description: "invalid_evaluation",
+			Description: "function evaluation",
 			ErrorCode:   "0",
 			Vars: map[string]interface{}{
 				"child_response":  "red",
@@ -102,5 +102,120 @@ func TestAddExecutions200(t *testing.T) {
 
 	if diff := cmp.Diff(payloadResponse, response); diff != "" {
 		t.Errorf("mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestAddExecutionsError(t *testing.T) {
+	userAgent := fmt.Sprintf("builder-go/%s", clientversion)
+
+	cases := []struct {
+		name        string
+		contentType string
+		errMsg      string
+		errResult   string
+		status      int
+	}{
+		{
+			"tenant not found",
+			"text/html",
+			"not found",
+			errTenantNotFound.Error(),
+			http.StatusNotFound,
+		},
+		{
+			"rate limit",
+			"text/html",
+			"rate limit",
+			errRateLimit.Error(),
+			http.StatusServiceUnavailable,
+		},
+		{
+			"tree not found",
+			"application/json",
+			"tree_not_found",
+			errTreeNotFound.Error(),
+			http.StatusNotFound,
+		},
+		{
+			"release not found",
+			"application/json",
+			"function_not_found",
+			errReleaseNotFound.Error(),
+			http.StatusNotFound,
+		},
+		{
+			"api key format",
+			"application/json",
+			"authorization header format must be Bearer {token}",
+			errAPIKeyFormat.Error(),
+			http.StatusBadRequest,
+		},
+		{
+			"permissions",
+			"application/json",
+			"not_allowd",
+			errPermissions.Error(),
+			http.StatusForbidden,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				reqAgent := r.Header.Get("User-Agent")
+				if reqAgent != userAgent {
+					t.Errorf("want [%s] got [%s]", userAgent, reqAgent)
+				}
+
+				payload := map[string]string{
+					"error": tt.errMsg,
+				}
+
+				serverResponse, err := json.Marshal(payload)
+				if err != nil {
+					t.Errorf("error marshalling response [%v]", err)
+				}
+
+				w.Header().Set("Content-Type", tt.contentType)
+				w.Header().Set(headerSessionID, "c563cd9a979c46c18d8d892b122f5e38")
+				w.Header().Set(headerRequestID, "c563cd9a979c46c18d8d892b122f5e39")
+				w.Header().Set("X-Trace-Id", "c563cd9a979c46c18d8d892b122f5e40")
+				w.WriteHeader(tt.status)
+
+				n, err := w.Write(serverResponse)
+				if err != nil {
+					t.Errorf("Error writing response httptest Server [%v][%d]", err, n)
+				}
+			}))
+
+			defer server.Close()
+
+			apiKEY := "aabbcc"
+			tenantID := "play_ground_1234"
+
+			client := New(apiKEY, tenantID)
+			client.apiURL = server.URL
+
+			parameters := map[string]interface{}{
+				"color": "red",
+			}
+
+			treeID := "01GS65K40R6WBAS3C2HYV0SXTE"
+			//treeID := "01GS8E0S"
+			response, err := client.AddExecution(treeID, "test", parameters)
+			if err == nil {
+				t.Error("Tesing error, result must have a non nil error")
+			}
+
+			if err.Error() != tt.errResult {
+				t.Errorf("want [%s] got [%s]", tt.errResult, err.Error())
+			}
+
+			payloadResponse := Response{}
+
+			if diff := cmp.Diff(payloadResponse, response); diff != "" {
+				t.Errorf("mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }

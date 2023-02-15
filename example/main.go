@@ -2,17 +2,18 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"os"
 
 	"github.com/reevolute/builder-go"
 )
 
 func main() {
+	apiKey := os.Getenv("API_KEY")
 
-	var apiKey = os.Getenv("API_KEY")
-	var tenantID = os.Getenv("TENANT_ID")
-	var treeID = os.Getenv("TREE_ID")
+	tenantID := os.Getenv("TENANT_ID")
+
+	treeID := os.Getenv("TREE_ID")
 
 	client := builder.New(apiKey, tenantID)
 
@@ -22,9 +23,10 @@ func main() {
 
 	result, err := client.AddExecution(treeID, "production", params)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Printf("Error: %v\n", err)
+
 		return
 	}
 
-	fmt.Printf("The result is %v\n", result)
+	log.Printf("The result is %v\n", result)
 }
