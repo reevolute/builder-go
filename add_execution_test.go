@@ -200,8 +200,8 @@ func TestAddExecutionsError(t *testing.T) {
 				"color": "red",
 			}
 
-			treeID := "01GS65K40R6WBAS3C2HYV0SXTE"
-			//treeID := "01GS8E0S"
+			treeID := "01GS8E0S"
+
 			response, err := client.AddExecution(treeID, "test", parameters)
 			if err == nil {
 				t.Error("Tesing error, result must have a non nil error")

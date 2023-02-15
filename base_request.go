@@ -129,9 +129,6 @@ func (a *API) builderBaseRequest(ctx context.Context, request *http.Request) (Re
 	}
 
 	if unacceptableStatusCode := 399; response.StatusCode > unacceptableStatusCode {
-		log.Printf("status [%d] [%s]", response.StatusCode, content)
-		log.Printf("content type [%s]", response.Header.Get("Content-Type"))
-
 		return Response{}, procErrors(response, content)
 	}
 
