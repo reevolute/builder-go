@@ -101,7 +101,7 @@ func procErrors(response *http.Response, body []byte) error {
 	return procBuilderErrors(response.StatusCode, res.Error)
 }
 
-func (a *API) builderBaseRequest(ctx context.Context, request *http.Request) (Response, error) {
+func (a *API) setCommonHeaders(request *http.Request) {
 	request.Header.Set("Content-Type", "application/json")
 
 	userAgent := fmt.Sprintf("builder-go/%s", clientversion)
@@ -110,6 +110,10 @@ func (a *API) builderBaseRequest(ctx context.Context, request *http.Request) (Re
 
 	authorizationValue := fmt.Sprintf("Bearer %s", a.apiKey)
 	request.Header.Set("Authorization", authorizationValue)
+}
+
+func (a *API) builderBaseSyncRequest(ctx context.Context, request *http.Request) (Response, error) {
+	a.setCommonHeaders(request)
 
 	response, err := a.httpClient.Do(request.WithContext(ctx))
 	if err != nil {
@@ -147,4 +151,31 @@ func (a *API) builderBaseRequest(ctx context.Context, request *http.Request) (Re
 	}
 
 	return res, nil
+}
+
+func (a *API) builderBaseAsyncRequest(ctx context.Context, request *http.Request) (string, error) {
+	a.setCommonHeaders(request)
+
+	response, err := a.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return "", fmt.Errorf("%w", err)
+	}
+
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			log.Printf("error closing body [%v]", err)
+		}
+	}()
+
+	if unacceptableStatusCode := 399; response.StatusCode > unacceptableStatusCode {
+		content, err := io.ReadAll(response.Body)
+		if err != nil {
+			return "", fmt.Errorf("%w", err)
+		}
+
+		return "", procErrors(response, content)
+	}
+
+	return response.Header.Get(headerRequestID), nil
 }
