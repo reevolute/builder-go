@@ -34,6 +34,7 @@ type Response struct {
 type Client interface {
 	AddExecution(treeID, releaseID string, params map[string]interface{}) (Response, error)
 	AddAsyncExecution(treeID, releaseID string, params map[string]interface{}) (string, error)
+	AddInteraction(sessionID, interactionType string, params map[string]interface{}) (Response, error)
 }
 
 // API is the builder client implementation.
