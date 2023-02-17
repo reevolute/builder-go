@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 )
 
 const (
@@ -21,9 +22,86 @@ type builderResponse struct {
 	Data         ResponseData `json:"data"`
 }
 
-var errBuilderAPI = errors.New("builder api response different from 2xx")
+type builderError struct {
+	Error string `json:"error"`
+}
 
-func (a *API) builderBaseRequest(ctx context.Context, request *http.Request) (Response, error) {
+var (
+	errBuilderAPI      = errors.New("internal_builder_error")
+	errTreeNotFound    = errors.New("tree_not_found")
+	errReleaseNotFound = errors.New("release_not_found")
+	errInvalidAPIKey   = errors.New("invalidApiKey")
+	errTenantNotFound  = errors.New("tenant_not_found")
+	errAPIKeyFormat    = errors.New("wrong_api_key_format")
+	errPermissions     = errors.New("not_enough_privileges")
+	errRateLimit       = errors.New("rate_limit_reached")
+)
+
+func proc404(err string) error {
+	switch err {
+	case "function_not_found":
+		return errReleaseNotFound
+	case "tree_not_found":
+		return errTreeNotFound
+	}
+
+	return errBuilderAPI
+}
+
+func proc400(err string) error {
+	switch err {
+	case "authorization header format must be Bearer {token}":
+		return errAPIKeyFormat
+	case "tree_not_found":
+		return errTreeNotFound
+	}
+
+	return errBuilderAPI
+}
+
+func procBuilderErrors(status int, err string) error {
+	switch status {
+	case http.StatusNotFound:
+		return proc404(err)
+	case http.StatusUnauthorized:
+		return errInvalidAPIKey
+	case http.StatusForbidden:
+		return errPermissions
+	case http.StatusBadRequest:
+		return proc400(err)
+	}
+
+	return errBuilderAPI
+}
+
+func procBalancerError(status int) error {
+	switch status {
+	case http.StatusNotFound:
+		return errTenantNotFound
+	case http.StatusServiceUnavailable:
+		return errRateLimit
+	}
+
+	return errBuilderAPI
+}
+
+func procErrors(response *http.Response, body []byte) error {
+	contentType := response.Header.Get("Content-Type")
+
+	if strings.Contains(contentType, "text/html") {
+		return procBalancerError(response.StatusCode)
+	}
+
+	var res builderError
+
+	if err := json.Unmarshal(body, &res); err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	return procBuilderErrors(response.StatusCode, res.Error)
+}
+
+func (a *API) setCommonHeaders(request *http.Request) {
 	request.Header.Set("Content-Type", "application/json")
 
 	userAgent := fmt.Sprintf("builder-go/%s", clientversion)
@@ -32,6 +110,10 @@ func (a *API) builderBaseRequest(ctx context.Context, request *http.Request) (Re
 
 	authorizationValue := fmt.Sprintf("Bearer %s", a.apiKey)
 	request.Header.Set("Authorization", authorizationValue)
+}
+
+func (a *API) builderBaseSyncRequest(ctx context.Context, request *http.Request) (Response, error) {
+	a.setCommonHeaders(request)
 
 	response, err := a.httpClient.Do(request.WithContext(ctx))
 	if err != nil {
@@ -50,14 +132,14 @@ func (a *API) builderBaseRequest(ctx context.Context, request *http.Request) (Re
 		return Response{}, fmt.Errorf("%w", err)
 	}
 
+	if unacceptableStatusCode := 399; response.StatusCode > unacceptableStatusCode {
+		return Response{}, procErrors(response, content)
+	}
+
 	var baseResponse builderResponse
 
 	if err := json.Unmarshal(content, &baseResponse); err != nil {
 		return Response{}, fmt.Errorf("%w", err)
-	}
-
-	if unacceptableStatusCode := 399; response.StatusCode > unacceptableStatusCode {
-		return Response{}, errBuilderAPI
 	}
 
 	res := Response{
@@ -69,4 +151,31 @@ func (a *API) builderBaseRequest(ctx context.Context, request *http.Request) (Re
 	}
 
 	return res, nil
+}
+
+func (a *API) builderBaseAsyncRequest(ctx context.Context, request *http.Request) (string, error) {
+	a.setCommonHeaders(request)
+
+	response, err := a.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return "", fmt.Errorf("%w", err)
+	}
+
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			log.Printf("error closing body [%v]", err)
+		}
+	}()
+
+	if unacceptableStatusCode := 399; response.StatusCode > unacceptableStatusCode {
+		content, err := io.ReadAll(response.Body)
+		if err != nil {
+			return "", fmt.Errorf("%w", err)
+		}
+
+		return "", procErrors(response, content)
+	}
+
+	return response.Header.Get(headerRequestID), nil
 }
