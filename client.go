@@ -12,7 +12,7 @@ const defaultHTTPTimeout = 120 * time.Second
 const APIURL string = "https://builder.api.reevolute.com"
 
 // clientversion should be the same as tag, used for seeting user-agent.
-const clientversion = "0.0.1"
+const clientversion = "0.2.0"
 
 // ResponseData data component from Builder response.
 type ResponseData struct {
